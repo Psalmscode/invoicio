@@ -7,6 +7,8 @@ import { InvoiceIcon, ChartIcon, SunIcon, MoonIcon, XIcon } from './Icons';
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', Icon: ChartIcon },
   { id: 'invoices', label: 'Invoices', Icon: InvoiceIcon },
+  { id: 'clients', label: 'Clients', Icon: InvoiceIcon },
+  { id: 'settings', label: 'Branding', Icon: InvoiceIcon },
 ];
 
 export default function Sidebar({ page, onNavigate, onClose, open }) {

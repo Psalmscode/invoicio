@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useApp } from './context/AppContext';
 import Sidebar from './components/Sidebar';
 import InvoiceList from './components/InvoiceList';
 import InvoiceDetail from './components/InvoiceDetail';
 import InvoiceForm from './components/InvoiceForm';
 import Dashboard from './components/Dashboard';
+import Clients from './components/Clients';
+import Branding from './components/Branding';
 import ToastContainer from './components/Toast';
 import { MenuIcon, PlusIcon } from './components/Icons';
 
@@ -67,11 +69,15 @@ export default function App() {
   const pageTitle = {
     dashboard: 'Dashboard',
     invoices: 'Invoices',
+    clients: 'Clients',
+    settings: 'Branding',
   };
 
   const pageSubtitle = {
     dashboard: 'Overview & analytics',
     invoices: selectedInvoice ? `Invoice ${selectedInvoice.id}` : 'Manage your invoices',
+    clients: 'Saved contacts & billing details',
+    settings: 'Manage branding, logo & default invoice notes',
   };
 
   // close sidebar with Escape and lock body scroll when open (mobile overlay)
@@ -155,6 +161,9 @@ export default function App() {
               onEdit={handleEdit}
             />
           )}
+
+          {page === 'clients' && <Clients />}
+          {page === 'settings' && <Branding />}
         </main>
       </div>
 

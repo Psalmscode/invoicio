@@ -34,6 +34,87 @@ export default function Dashboard() {
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, 5);
 
+  // Aging buckets for outstanding invoices (pending)
+  const MS_PER_DAY = 1000 * 60 * 60 * 24;
+  const todayDate = new Date();
+  function daysUntilDue(dueStr) {
+    if (!dueStr) return Infinity;
+    const due = new Date(dueStr);
+    return Math.ceil((due - todayDate) / MS_PER_DAY);
+  }
+
+  const aging = {
+    overdue: { count: 0, total: 0 },
+    d0_30: { count: 0, total: 0 },
+    d31_60: { count: 0, total: 0 },
+    d61_plus: { count: 0, total: 0 },
+  };
+
+  pending.forEach(inv => {
+    const amountBase = calcTotal(inv.items) * (1 + ((inv.taxRate || 0) / 100));
+    const invCurrency = inv.invoiceCurrency || 'GBP';
+    const amount = convertCurrency(amountBase, invCurrency, currency);
+    const days = daysUntilDue(inv.due);
+    if (days < 0) {
+      aging.overdue.count += 1;
+      aging.overdue.total += amount;
+    } else if (days <= 30) {
+      aging.d0_30.count += 1;
+      aging.d0_30.total += amount;
+    } else if (days <= 60) {
+      aging.d31_60.count += 1;
+      aging.d31_60.total += amount;
+    } else {
+      aging.d61_plus.count += 1;
+      aging.d61_plus.total += amount;
+    }
+  });
+
+  function exportCsv() {
+    const rows = [
+      ['ID','Invoice No','Client','Email','Date','Due','Status','Currency','Amount','Amount('+currency+')','Payments','Balance']
+    ];
+
+    invoices.forEach(inv => {
+      const amountBase = calcTotal(inv.items) * (1 + ((inv.taxRate || 0) / 100));
+      const invCurrency = inv.invoiceCurrency || 'GBP';
+      const amountConverted = convertCurrency(amountBase, invCurrency, currency);
+      const paymentsSum = (inv.payments || []).reduce((s, p) => s + (+p.amount || 0), 0);
+      const balanceBase = Math.max(0, amountBase - paymentsSum);
+      const balanceConverted = convertCurrency(balanceBase, invCurrency, currency);
+      rows.push([
+        inv.id,
+        inv.no || '',
+        inv.to?.name || '',
+        inv.to?.email || '',
+        inv.date || '',
+        inv.due || '',
+        inv.status || '',
+        invCurrency,
+        (amountBase || 0).toFixed(2),
+        (amountConverted || 0).toFixed(2),
+        (paymentsSum || 0).toFixed(2),
+        (balanceConverted || 0).toFixed(2),
+      ]);
+    });
+
+    const escapeCell = (cell) => {
+      const s = String(cell == null ? '' : cell).replace(/"/g, '""');
+      return (s.includes(',') || s.includes('\n') || s.includes('"')) ? `"${s}"` : s;
+    };
+
+    const csv = rows.map(r => r.map(escapeCell).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `invoices_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="animate-in">
       {/* Stats */}
@@ -57,6 +138,37 @@ export default function Dashboard() {
           <div className="stat-label">All Invoices</div>
           <div className="stat-value">{invoices.length}</div>
           <div className="stat-sub">{formatCurrency(allInvoicesTotal, currency)} total</div>
+        </div>
+      </div>
+
+      {/* Aging breakdown + export */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 18 }}>
+        <div style={{ fontSize: 14, color: '#666' }}>Aging (outstanding invoices)</div>
+        <div>
+          <button className="btn" onClick={exportCsv} style={{ marginLeft: 8 }}>Export Invoices (CSV)</button>
+        </div>
+      </div>
+
+      <div className="stats-grid" style={{ marginTop: 12 }}>
+        <div className="stat-card">
+          <div className="stat-label">Overdue</div>
+          <div className="stat-value">{formatCurrency(aging.overdue.total, currency)}</div>
+          <div className="stat-sub">{aging.overdue.count} invoice{aging.overdue.count !== 1 ? 's' : ''}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Due in 0–30 days</div>
+          <div className="stat-value">{formatCurrency(aging.d0_30.total, currency)}</div>
+          <div className="stat-sub">{aging.d0_30.count} invoice{aging.d0_30.count !== 1 ? 's' : ''}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Due in 31–60 days</div>
+          <div className="stat-value">{formatCurrency(aging.d31_60.total, currency)}</div>
+          <div className="stat-sub">{aging.d31_60.count} invoice{aging.d31_60.count !== 1 ? 's' : ''}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Due in 61+ days</div>
+          <div className="stat-value">{formatCurrency(aging.d61_plus.total, currency)}</div>
+          <div className="stat-sub">{aging.d61_plus.count} invoice{aging.d61_plus.count !== 1 ? 's' : ''}</div>
         </div>
       </div>
 

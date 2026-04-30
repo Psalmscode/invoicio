@@ -10,7 +10,9 @@ const EMPTY_FORM = (currentCurrency = 'GBP') => ({
   paymentTerms: 30,
   desc: '',
   invoiceCurrency: currentCurrency,
+  taxRate: 0,
   from: { name: '', street: '', city: '', postcode: '', country: '' },
+  bank: { name: '', account: '', sortCode: '', iban: '' },
   to: { name: '', email: '', street: '', city: '', postcode: '', country: '' },
   items: [{ id: Date.now(), name: '', qty: 1, price: '' }],
 });
@@ -38,11 +40,12 @@ function validate(form) {
 }
 
 export default function InvoiceForm({ invoice, onSave, onClose }) {
-  const { currency, saveInvoice, addToast } = useApp();
+  const { currency, clients = [], addClient, addToast, branding } = useApp();
   const isEdit = !!invoice;
   const [form, setForm] = useState(() =>
-    isEdit ? { ...invoice, items: invoice.items.map(i => ({ ...i })) } : EMPTY_FORM(currency)
+    isEdit ? { ...invoice, items: invoice.items.map(i => ({ ...i })) } : { ...EMPTY_FORM(currency), notes: (branding && branding.notes) || '' }
   );
+  const [selectedClient, setSelectedClient] = useState('');
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const trapRef = useFocusTrap(true);
@@ -101,6 +104,8 @@ export default function InvoiceForm({ invoice, onSave, onClose }) {
         qty: +it.qty,
         price: +it.price,
       })),
+      taxRate: +form.taxRate || 0,
+      notes: form.notes || '',
     };
   }
 
@@ -172,11 +177,61 @@ export default function InvoiceForm({ invoice, onSave, onClose }) {
             <Field id="from-post" label="Post Code" value={form.from.postcode} onChange={v => setField('from.postcode', v)} placeholder="Postcode" />
             <Field id="from-country" label="Country" value={form.from.country} onChange={v => setField('from.country', v)} placeholder="Country" />
           </div>
+          <div style={{ marginTop: 8, marginBottom: 8, fontSize: 11, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase' }}>Bank Details</div>
+          <div className="form-row">
+            <Field id="bank-name" label="Bank Name" value={form.bank?.name || ''} onChange={v => setField('bank.name', v)} placeholder="Bank name" />
+            <Field id="bank-account" label="Account No." value={form.bank?.account || ''} onChange={v => setField('bank.account', v)} placeholder="12345678" />
+          </div>
+          <div className="form-row">
+            <Field id="bank-sort" label="Sort Code" value={form.bank?.sortCode || ''} onChange={v => setField('bank.sortCode', v)} placeholder="00-00-00" />
+            <Field id="bank-iban" label="IBAN" value={form.bank?.iban || ''} onChange={v => setField('bank.iban', v)} placeholder="GB00..." />
+          </div>
         </div>
 
         {/* Bill To */}
         <div className="form-section">
           <div className="form-section-title">Bill To</div>
+          {clients && clients.length > 0 && (
+            <div className="form-row">
+              <div className="form-field">
+                <label>Saved Clients</label>
+                <select
+                  value={selectedClient}
+                  onChange={e => {
+                    const id = e.target.value;
+                    setSelectedClient(id);
+                    const c = clients.find(x => x.id === id);
+                    if (c) setForm(f => ({ ...f, to: { ...c } }));
+                  }}
+                >
+                  <option value="">Select client</option>
+                  {clients.map(c => (
+                    <option key={c.id} value={c.id}>{c.name} — {c.email}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-field" style={{ display: 'flex', alignItems: 'flex-end' }}>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => {
+                  if (!form.to.name || !form.to.email) {
+                    addToast && addToast('Client name and email required', 'error');
+                    return;
+                  }
+                  const client = {
+                    id: genId(),
+                    name: form.to.name,
+                    email: form.to.email,
+                    street: form.to.street,
+                    city: form.to.city,
+                    postcode: form.to.postcode,
+                    country: form.to.country,
+                  };
+                  addClient(client);
+                  setSelectedClient(client.id);
+                  addToast && addToast('Client saved', 'success');
+                }}>Save Client</button>
+              </div>
+            </div>
+          )}
           <div className="form-row full">
             <Field
               id="to-name" label="Client Name *"
@@ -224,12 +279,38 @@ export default function InvoiceForm({ invoice, onSave, onClose }) {
               </select>
             </div>
           </div>
+          <div className="form-row">
+            <div className="form-field">
+              <label htmlFor="inv-tax">Tax (%)</label>
+              <input
+                id="inv-tax"
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.taxRate || 0}
+                onChange={e => setField('taxRate', e.target.value)}
+              />
+            </div>
+            <div className="form-field" />
+          </div>
           <div className="form-row full">
             <Field
               id="inv-desc" label="Description *"
               value={form.desc} onChange={v => setField('desc', v)}
               error={errors['desc']} placeholder="e.g. Graphic Design Services"
             />
+          </div>
+          <div className="form-row full">
+            <div className="form-field">
+              <label htmlFor="inv-notes">Notes</label>
+              <textarea
+                id="inv-notes"
+                value={form.notes || ''}
+                onChange={e => setField('notes', e.target.value)}
+                rows={4}
+                placeholder="Add notes or terms for this invoice"
+              />
+            </div>
           </div>
         </div>
 

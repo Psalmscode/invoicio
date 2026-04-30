@@ -278,7 +278,12 @@ body {
 .detail-id span { color:var(--accent); }
 .detail-desc { font-size:13px; color:var(--text2); margin-top:4px; }
 .detail-from { text-align:right; font-size:13px; color:var(--text2); line-height:1.7; }
+.detail-bank { margin-top: 8px; }
+.detail-bank .detail-address { text-align: right; }
 .detail-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:24px; margin-bottom:32px; }
+
+.detail-notes { margin-top: 18px; }
+.detail-notes .detail-address { white-space: pre-wrap; }
 .detail-section { font-size:11px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; }
 .detail-value { font-size:14px; font-weight:600; color:var(--text); }
 .detail-address { font-size:13px; color:var(--text2); line-height:1.7; margin-top:6px; }
@@ -639,6 +644,14 @@ body {
   .stats-grid { grid-template-columns: 1fr; }
   .filter-bar { gap: 6px; }
   .filter-chip { padding: 6px 10px; font-size: 11px; }
+}
+
+/* Print: only print the invoice detail card */
+@media print {
+  body * { visibility: hidden !important; }
+  .detail-card, .detail-card * { visibility: visible !important; }
+  .detail-card { position: absolute; left: 0; top: 0; width: 100%; }
+  .action-bar, .action-bar-right, .btn, .topbar, .sidebar { display: none !important; }
 }
 
 /* ---- Utility ---- */
